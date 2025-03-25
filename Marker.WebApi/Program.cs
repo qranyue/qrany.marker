@@ -13,10 +13,11 @@ if (builder.Environment.IsDevelopment())
     builder.Services.AddEndpointsApiExplorer();
     builder.Services.AddSwaggerGen();
 }
+builder.Services.Configure<WeChatOption>(builder.Configuration.GetSection("WeChat"));
 builder.AddRedisClient("redis");
 builder.AddMongoDBClient("marker");
 builder.Services.AddSingleton(_ => _.GetRequiredService<IConnectionMultiplexer>().GetDatabase());
-builder.Services.AddSingleton<IWeChatService>();
+builder.Services.AddSingleton<IWeChatService, WeChatService>();
 
 var app = builder.Build();
 

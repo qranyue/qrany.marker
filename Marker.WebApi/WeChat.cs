@@ -4,7 +4,7 @@ namespace Marker.WebApi;
 
 public interface IWeChatService
 {
-    Task<WeChatUser> GetUserAsync(string code);
+    public Task<WeChatUser> GetUserAsync(string code);
 }
 
 public record WeChatOption(string AppId, string AppSecret);
