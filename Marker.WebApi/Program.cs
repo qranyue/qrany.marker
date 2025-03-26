@@ -28,6 +28,8 @@ if (app.Environment.IsDevelopment())
 
 app.UseHttpsRedirection();
 
+app.UseMiddleware<ExceptionMiddleware>();
+
 app.MapGet("/login", async ([FromServices] IWeChatService wechat, [FromServices] IDatabase cache, string code) =>
 {
     var u = await wechat.GetUserAsync(code);
