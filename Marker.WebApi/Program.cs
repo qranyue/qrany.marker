@@ -16,6 +16,7 @@ builder.Services.Configure<WeChatOption>(builder.Configuration.GetSection("WeCha
 builder.Services.AddSingleton(_ => _.GetRequiredService<IConnectionMultiplexer>().GetDatabase());
 builder.Services.AddSingleton<IWeChatService, WeChatService>();
 builder.Services.AddAuthentication().AddAuth();
+builder.Services.AddAuthorization();
 
 var app = builder.Build();
 
@@ -27,6 +28,7 @@ if (app.Environment.IsDevelopment())
 }
 
 app.UseHttpsRedirection();
+app.UseAuthorization();
 
 app.UseMiddleware<ExceptionMiddleware>();
 
