@@ -4,11 +4,14 @@ namespace Marker.WebApi;
 
 public interface IWeChatService
 {
-    public Task<WeChatUser> GetUserAsync(string code);
+    Task<WeChatUser> GetUserAsync(string code);
 }
 
-public record WeChatOption(string AppId, string AppSecret);
-
+public record WeChatOption
+{
+    public string AppId { get; set; } = string.Empty;
+    public string AppSecret { get; set; } = string.Empty;
+}
 
 #pragma warning disable IDE1006 // 命名样式
 public record WeChatUser(string session_key, string openid);
@@ -16,9 +19,9 @@ public record WeChatUser(string session_key, string openid);
 
 public class WeChatService(IOptions<WeChatOption> option) : IWeChatService
 {
-    WeChatOption wechat = option.Value;
+    private readonly WeChatOption wechat = option.Value;
 
-    const string url = "https://api.weixin.qq.com/";
+    private const string url = "https://api.weixin.qq.com/";
 
     public async Task<WeChatUser> GetUserAsync(string code)
     {
@@ -30,4 +33,3 @@ public class WeChatService(IOptions<WeChatOption> option) : IWeChatService
         return content;
     }
 };
-
