@@ -1,23 +1,29 @@
 using System.Security.Cryptography;
 using Marker.WebApi;
+using Microsoft.AspNetCore.Http.Features;
 using Microsoft.AspNetCore.Mvc;
 using MongoDB.Driver;
 using StackExchange.Redis;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// Add services to the container.
-// Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
-builder.AddServiceDefaults();
-builder.Services.AddEndpointsApiExplorer();
-builder.Services.AddSwaggerGen();
+var services = builder.Services;
+if (builder.Environment.IsDevelopment())
+{
+    builder.AddServiceDefaults();
+    // Add services to the container.
+    // Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
+    services.AddEndpointsApiExplorer();
+    services.AddSwaggerGen();
+}
 builder.AddRedisClient("redis");
 builder.AddMongoDBClient("marker");
-builder.Services.Configure<WeChatOption>(builder.Configuration.GetSection("WeChat"));
-builder.Services.AddSingleton(_ => _.GetRequiredService<IConnectionMultiplexer>().GetDatabase());
-builder.Services.AddSingleton<IWeChatService, WeChatService>();
-builder.Services.AddAuthentication().AddAuth();
-builder.Services.AddAuthorization();
+services.Configure<WeChatOption>(builder.Configuration.GetSection("WeChat"));
+services.Configure<FormOptions>(options => options.MultipartBodyLengthLimit = 10 * 1024 * 1024);
+services.AddSingleton(_ => _.GetRequiredService<IConnectionMultiplexer>().GetDatabase());
+services.AddSingleton<IWeChatService, WeChatService>();
+services.AddAuthentication().AddAuth();
+services.AddAuthorization();
 
 var app = builder.Build();
 
@@ -30,11 +36,12 @@ if (app.Environment.IsDevelopment())
 
 app.UseHttpsRedirection();
 app.UseStaticFiles();
+app.UseAuthentication();
 app.UseAuthorization();
 
 app.UseMiddleware<ExceptionMiddleware>();
 
-app.MapGet("/login", async ([FromServices] IWeChatService wechat, [FromServices] IDatabase cache, string code) =>
+app.MapGet("/login", async (IWeChatService wechat, IDatabase cache, string code) =>
 {
     var u = await wechat.GetUserAsync(code);
 
@@ -42,9 +49,9 @@ app.MapGet("/login", async ([FromServices] IWeChatService wechat, [FromServices]
     await cache.StringSetAsync(uuid, u.openid, TimeSpan.FromHours(7));
 
     return new RS<string>(uuid);
-}).WithName("登录").WithOpenApi();
+}).WithOpenApi();
 
-app.MapGet("/markers", async ([FromServices] IDatabase cache, [FromServices] IMongoDatabase db, [FromHeader] string token) =>
+app.MapGet("/markers", async (IDatabase cache, IMongoDatabase db, [FromHeader] string token) =>
 {
     string openid = (await cache.StringGetAsync(token))!;
     var M = db.GetCollection<CMarker>("Markers");
@@ -53,23 +60,23 @@ app.MapGet("/markers", async ([FromServices] IDatabase cache, [FromServices] IMo
     var i = M.Find(m => m.OpenId == openid).Project<MarkerResult>(p).ToListAsync();
     var o = await M.Find(m => m.Share == true && m.OpenId != openid).Project<MarkerResult>(p).ToListAsync();
     return new RS<IEnumerable<MarkerResult>>((await i).Concat(o));
-}).RequireAuthorization().WithName("获取").WithOpenApi();
+}).RequireAuthorization().WithOpenApi();
 
-app.MapGet("/tegs", async ([FromServices] IMongoDatabase db, string name) =>
+app.MapGet("/tegs", async (IMongoDatabase db, string name) =>
 {
     var T = db.GetCollection<CTag>("Tags");
     return new RS<IEnumerable<CTag>>(await T.Find(_ => _.Name.Contains(name)).Limit(10).ToListAsync());
-}).WithName("标签").WithOpenApi();
+}).WithOpenApi();
 
-app.MapGet("/info", async ([FromServices] IDatabase cache, [FromServices] IMongoDatabase db, [FromHeader] string token, int id) =>
+app.MapGet("/info", async (IDatabase cache, IMongoDatabase db, [FromHeader] string token, int id) =>
 {
     string openid = (await cache.StringGetAsync(token))!;
     var M = db.GetCollection<CMarker>("Markers");
     var m = await M.Find(m => m.Id == id).FirstOrDefaultAsync();
     return new RS<InfoResult>(new InfoResult(m.Latitude, m.Longitude, m.Content, m.Tag, m.Images, m.Share, m.OpenId == openid));
-}).RequireAuthorization().WithName("详情").WithOpenApi();
+}).RequireAuthorization().WithOpenApi();
 
-app.MapPost("/edit", async (IDatabase cache, [FromServices] IMongoDatabase db, [FromHeader] string token, EditForm from) =>
+app.MapPost("/edit", async (IDatabase cache, IMongoDatabase db, [FromHeader] string token, EditForm from) =>
 {
     string openid = (await cache.StringGetAsync(token))!;
     var M = db.GetCollection<CMarker>("Markers");
@@ -101,23 +108,25 @@ app.MapPost("/edit", async (IDatabase cache, [FromServices] IMongoDatabase db, [
         await M.InsertOneAsync(m);
         return new RS<MarkerResult>(new(m.Id, m.Latitude, m.Longitude, m.Content, m.TagId, m.Tag));
     }
-}).RequireAuthorization().WithName("编辑").WithOpenApi();
+}).RequireAuthorization().WithOpenApi();
 
-app.MapPost("/upload", async (HttpContext ctx, IFormFile file) =>
+app.MapPost("/upload", async (HttpRequest request) =>
 {
     var folder = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot", "media");
     if (!Directory.Exists(folder)) Directory.CreateDirectory(folder);
+    var file = request?.Form?.Files?.FirstOrDefault() ?? throw new Exception("请上传文件");
+    using var input = file.OpenReadStream();
     using var crypto = SHA256.Create();
-    using var read = file.OpenReadStream();
-    var hash = await crypto.ComputeHashAsync(read);
+    var hash = await crypto.ComputeHashAsync(input);
 
-    var name = $"{BitConverter.ToString(hash).Replace("-", "")}{Path.GetExtension(file.FileName)}";
+    var name = $"{BitConverter.ToString(hash).Replace("-", "")}{Path.GetExtension(file.FileName).ToLowerInvariant()}";
     var path = Path.Combine(folder, name);
-    var url = $"{ctx.Request.Host.Host}/media/{name}";
+    var url = $"/media/{name}";
+
     if (File.Exists(path)) return new RS<string>(url);
     using var stream = new FileStream(path, FileMode.Create);
     await file.CopyToAsync(stream);
     return new RS<string>(url);
-}).RequireAuthorization().WithName("上传").WithOpenApi();
+}).RequireAuthorization().WithOpenApi();
 
 app.Run();
