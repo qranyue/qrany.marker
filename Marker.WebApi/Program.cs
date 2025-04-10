@@ -121,7 +121,7 @@ app.MapPost("/upload", async (HttpRequest request) =>
 
     var name = $"{BitConverter.ToString(hash).Replace("-", "")}{Path.GetExtension(file.FileName).ToLowerInvariant()}";
     var path = Path.Combine(folder, name);
-    var url = $"/media/{name}";
+    var url = $"media/{name}";
 
     if (File.Exists(path)) return new RS<string>(url);
     using var stream = new FileStream(path, FileMode.Create);
