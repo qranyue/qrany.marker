@@ -2,6 +2,7 @@ using Marker.WebApi.Collections;
 using Marker.WebApi.Models;
 using Microsoft.AspNetCore.Mvc;
 using MongoDB.Driver;
+using MongoDB.Driver.Linq;
 using StackExchange.Redis;
 
 namespace Marker.WebApi.Controllers;
@@ -28,8 +29,8 @@ public class MarkerController(IDatabase cache, IMongoDatabase db) : ControllerBa
         var M = db.GetCollection<CMarker>("Markers");
 
         var p = Builders<CMarker>.Projection.Include(m => m.Id).Include(m => m.Latitude).Include(m => m.Longitude).Include(m => m.Content).Include(m => m.TagId).Include(m => m.Tag);
-        var i = M.Find(m => m.OpenId == openid).Project<MarkerResult>(p).ToListAsync();
-        var o = await M.Find(m => m.Share == true && m.OpenId != openid).Project<MarkerResult>(p).ToListAsync();
+        var i = (from _ in M.AsQueryable() where _.OpenId == openid select new MarkerResult(_.Id, _.Latitude, _.Longitude, _.Content, _.TagId, _.Tag)).ToListAsync();
+        var o = await (from _ in M.AsQueryable() where _.Share == true && _.OpenId != openid select new MarkerResult(_.Id, _.Latitude, _.Longitude, _.Content, _.TagId, _.Tag)).ToListAsync();
         return new((await i).Concat(o));
     }
 
@@ -46,7 +47,7 @@ public class MarkerController(IDatabase cache, IMongoDatabase db) : ControllerBa
     {
         string openid = (await cache.StringGetAsync(token))!;
         var M = db.GetCollection<CMarker>("Markers");
-        var m = await M.Find(m => m.Id == id).FirstOrDefaultAsync();
+        var m = await (from _ in M.AsQueryable() where _.Id == id select _).FirstOrDefaultAsync();
         return new(new(m.Latitude, m.Longitude, m.Content, m.Tag, m.Images, m.Share, m.OpenId == openid));
     }
 
@@ -54,42 +55,42 @@ public class MarkerController(IDatabase cache, IMongoDatabase db) : ControllerBa
     /// 编辑标签
     /// </summary>
     /// <param name="token"></param>
-    /// <param name="from">编辑内容</param>
+    /// <param name="form">编辑内容</param>
     /// <returns>更新的内容</returns>
     [HttpPost("edit")]
     [ProducesResponseType(StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(RE), StatusCodes.Status500InternalServerError)]
-    public async Task<RS<MarkerResult>> EditAsync([FromHeader] string token, EditForm from)
+    public async Task<RS<MarkerResult>> EditAsync([FromHeader] string token, EditForm form)
     {
         string openid = (await cache.StringGetAsync(token))!;
         var M = db.GetCollection<CMarker>("Markers");
         var T = db.GetCollection<CTag>("Tags");
-        var t = await T.Find(t => t.Name == from.Tag).FirstOrDefaultAsync();
+        var t = await (from _ in T.AsQueryable() where _.Name == form.Tag select _).FirstOrDefaultAsync();
         if (null == t)
         {
-            var tc = await T.Find(_ => true).CountDocumentsAsync();
-            t = new CTag(tc, from.Tag);
+            var tc = await (from _ in M.AsQueryable() select _).CountAsync();
+            t = new CTag(tc, form.Tag);
             await T.InsertOneAsync(t);
         }
-        if (from.Id.HasValue)
+        if (form.Id.HasValue)
         {
-            await M.UpdateOneAsync(m => m.Id == from.Id, Builders<CMarker>.Update
-                .Set(_ => _.Latitude, from.Latitude)
-                .Set(_ => _.Longitude, from.Longitude)
-                .Set(_ => _.Content, from.Content)
+            await M.UpdateOneAsync(m => m.Id == form.Id, Builders<CMarker>.Update
+                .Set(_ => _.Latitude, form.Latitude)
+                .Set(_ => _.Longitude, form.Longitude)
+                .Set(_ => _.Content, form.Content)
                 .Set(_ => _.TagId, t.Id)
-                .Set(_ => _.Tag, from.Tag)
-                .Set(_ => _.Images, from.Images)
-                .Set(_ => _.Share, from.Share)
+                .Set(_ => _.Tag, form.Tag)
+                .Set(_ => _.Images, form.Images)
+                .Set(_ => _.Share, form.Share)
             );
-            return new RS<MarkerResult>(new(from.Id.Value, from.Latitude, from.Longitude, from.Content, t.Id, from.Tag));
+            return new(new(form.Id.Value, form.Latitude, form.Longitude, form.Content, t.Id, form.Tag));
         }
         else
         {
-            var mc = await M.Find(_ => true).CountDocumentsAsync();
-            var m = new CMarker(mc, openid, from.Latitude, from.Longitude, from.Content, t.Id, from.Tag, from.Images, from.Share);
+            var mc = await (from _ in M.AsQueryable() select _).CountAsync();
+            var m = new CMarker(mc, openid, form.Latitude, form.Longitude, form.Content, t.Id, form.Tag, form.Images, form.Share);
             await M.InsertOneAsync(m);
-            return new RS<MarkerResult>(new(m.Id, m.Latitude, m.Longitude, m.Content, m.TagId, m.Tag));
+            return new(new(m.Id, m.Latitude, m.Longitude, m.Content, m.TagId, m.Tag));
         }
     }
 }
