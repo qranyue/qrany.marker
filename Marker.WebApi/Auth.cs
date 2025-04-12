@@ -1,4 +1,5 @@
 using System.Text.Encodings.Web;
+using Marker.WebApi.Models;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.Extensions.Options;
 using StackExchange.Redis;
