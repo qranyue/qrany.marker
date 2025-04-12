@@ -36,8 +36,16 @@ class AuthHandler(IOptionsMonitor<AuthOptions> options, ILoggerFactory logger, U
     }
 }
 
+/// <summary>
+/// 认证扩展
+/// </summary>
 public static class AuthenticationExtensions
 {
+    /// <summary>
+    /// 添加认证
+    /// </summary>
+    /// <param name="builder"></param>
+    /// <returns></returns>
     public static AuthenticationBuilder AddAuth(this AuthenticationBuilder builder)
     {
         return builder.AddScheme<AuthOptions, AuthHandler>(AuthScheme.Scheme, options => { });

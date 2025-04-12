@@ -10,7 +10,11 @@ if (builder.Environment.IsDevelopment())
     // Add services to the container.
     // Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
     services.AddEndpointsApiExplorer();
-    services.AddSwaggerGen();
+    services.AddSwaggerGen(_ =>
+    {
+        var xml = $"{System.Reflection.Assembly.GetExecutingAssembly().GetName().Name}.xml";
+        _.IncludeXmlComments(Path.Combine(AppContext.BaseDirectory, xml));
+    });
 }
 builder.AddRedisClient("redis");
 builder.AddMongoDBClient("marker");

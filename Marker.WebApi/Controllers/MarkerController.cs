@@ -6,10 +6,22 @@ using StackExchange.Redis;
 
 namespace Marker.WebApi.Controllers;
 
+/// <summary>
+/// 标签
+/// </summary>
+/// <param name="cache">缓存</param>
+/// <param name="db">数据</param>
 [ApiController]
 public class MarkerController(IDatabase cache, IMongoDatabase db) : ControllerBase
 {
+    /// <summary>
+    /// 获取所有标签
+    /// </summary>
+    /// <param name="token"></param>
+    /// <returns>标签列表</returns>
     [HttpGet("markers")]
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(RE), StatusCodes.Status500InternalServerError)]
     public async Task<RS<IEnumerable<MarkerResult>>> GetAsync([FromHeader] string token)
     {
         string openid = (await cache.StringGetAsync(token))!;
@@ -21,7 +33,15 @@ public class MarkerController(IDatabase cache, IMongoDatabase db) : ControllerBa
         return new((await i).Concat(o));
     }
 
+    /// <summary>
+    /// 获取标签详情
+    /// </summary>
+    /// <param name="token"></param>
+    /// <param name="id">主键</param>
+    /// <returns>标签详情</returns>
     [HttpGet("info")]
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(RE), StatusCodes.Status500InternalServerError)]
     public async Task<RS<InfoResult>> InfoAsync([FromHeader] string token, long id)
     {
         string openid = (await cache.StringGetAsync(token))!;
@@ -30,7 +50,15 @@ public class MarkerController(IDatabase cache, IMongoDatabase db) : ControllerBa
         return new(new(m.Latitude, m.Longitude, m.Content, m.Tag, m.Images, m.Share, m.OpenId == openid));
     }
 
+    /// <summary>
+    /// 编辑标签
+    /// </summary>
+    /// <param name="token"></param>
+    /// <param name="from">编辑内容</param>
+    /// <returns>更新的内容</returns>
     [HttpPost("edit")]
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(RE), StatusCodes.Status500InternalServerError)]
     public async Task<RS<MarkerResult>> EditAsync([FromHeader] string token, EditForm from)
     {
         string openid = (await cache.StringGetAsync(token))!;
