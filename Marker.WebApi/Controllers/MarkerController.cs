@@ -27,8 +27,6 @@ public class MarkerController(IDatabase cache, IMongoDatabase db) : ControllerBa
     {
         string openid = (await cache.StringGetAsync(token))!;
         var M = db.GetCollection<CMarker>("Markers");
-
-        var p = Builders<CMarker>.Projection.Include(m => m.Id).Include(m => m.Latitude).Include(m => m.Longitude).Include(m => m.Content).Include(m => m.TagId).Include(m => m.Tag);
         var i = (from _ in M.AsQueryable() where _.OpenId == openid select new MarkerResult(_.Id, _.Latitude, _.Longitude, _.Content, _.TagId, _.Tag)).ToListAsync();
         var o = await (from _ in M.AsQueryable() where _.Share == true && _.OpenId != openid select new MarkerResult(_.Id, _.Latitude, _.Longitude, _.Content, _.TagId, _.Tag)).ToListAsync();
         return new((await i).Concat(o));
