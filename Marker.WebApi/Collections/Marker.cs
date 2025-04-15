@@ -7,6 +7,7 @@ namespace Marker.WebApi.Collections;
 /// <param name="OpenId">openid</param>
 /// <param name="Latitude">经度</param>
 /// <param name="Longitude">纬度</param>
+/// <param name="Title">标题</param>
 /// <param name="Content">内容</param>
 /// <param name="TagId">标签主键</param>
 /// <param name="Tag">标签</param>
@@ -17,6 +18,7 @@ public record CMarker(
     string OpenId,
     double Latitude,
     double Longitude,
+    string Title,
     string Content,
     long TagId,
     string Tag,
