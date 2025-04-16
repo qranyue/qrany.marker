@@ -36,7 +36,7 @@ public class TagController(IMongoDatabase db) : ControllerBase
     [ProducesResponseType(typeof(RE), StatusCodes.Status500InternalServerError)]
     public async Task<RS<IEnumerable<CTag>>> GetAsync()
     {
-        var T = db.GetCollection<CMarker>("Marker");
+        var T = db.GetCollection<CMarker>("Markers");
         var r = from _ in T.AsQueryable() group _ by _.TagId into g orderby g.Count() descending select g;
         return new(from _ in await r.Take(10).ToListAsync() let v = _.FirstOrDefault() select new CTag(v.TagId, v.Tag));
     }
