@@ -1,0 +1,31 @@
+services:
+  qrany-marker:
+    build:
+      name: qrany-marker
+      context: .
+      dockerfile: webapi.dockerfile
+    depends_on:
+      - redis
+      - mongo
+    networks:
+      - marker-network
+
+  redis:
+    image: redis
+    networks:
+      - marker-network
+
+  mongo:
+    image: mongo
+    volumes:
+      - marker_mongo_data:/data/db
+    networks:
+      - marker-network
+
+volumes:
+  marker_mongo_data:
+
+
+networks:
+  marker-network:
+    driver: bridge
