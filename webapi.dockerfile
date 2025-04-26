@@ -6,11 +6,11 @@ WORKDIR /code
 COPY Marker.ServiceDefaults/ Marker.ServiceDefaults/
 COPY Marker.WebApi/ Marker.WebApi/
 WORKDIR /code/Marker.WebApi
-RUN dotnet restore Marker.WebApi.csproj
-RUN dotnet build Marker.WebApi.csproj -c Release
+RUN dotnet restore
+RUN dotnet build -c Release
 
 FROM build AS publish
-RUN dotnet publish Marker.WebApi.csproj -c Release
+RUN dotnet publish -c Release
 
 FROM base AS final
 COPY --from=publish /code/Marker.WebApi/bin/Release/net8.0/publish/ .
