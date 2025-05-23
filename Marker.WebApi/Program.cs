@@ -4,18 +4,15 @@ using StackExchange.Redis;
 var builder = WebApplication.CreateBuilder(args);
 
 var services = builder.Services;
-if (builder.Environment.IsDevelopment())
+builder.AddServiceDefaults();
+// Add services to the container.
+// Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
+services.AddEndpointsApiExplorer();
+services.AddSwaggerGen(_ =>
 {
-    builder.AddServiceDefaults();
-    // Add services to the container.
-    // Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
-    services.AddEndpointsApiExplorer();
-    services.AddSwaggerGen(_ =>
-    {
-        var xml = $"{System.Reflection.Assembly.GetExecutingAssembly().GetName().Name}.xml";
-        _.IncludeXmlComments(Path.Combine(AppContext.BaseDirectory, xml));
-    });
-}
+    var xml = $"{System.Reflection.Assembly.GetExecutingAssembly().GetName().Name}.xml";
+    _.IncludeXmlComments(Path.Combine(AppContext.BaseDirectory, xml));
+});
 builder.AddRedisClient("redis");
 builder.AddMongoDBClient("marker");
 services.Configure<WeChatOption>(builder.Configuration.GetSection("WeChat"));
@@ -42,4 +39,4 @@ app.UseAuthorization();
 app.MapControllers();
 app.MapDefaultEndpoints();
 
-app.Run();
+await app.RunAsync();

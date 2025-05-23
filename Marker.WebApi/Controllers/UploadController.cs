@@ -9,6 +9,7 @@ namespace Marker.WebApi.Controllers;
 [ApiController]
 public class UploadController : ControllerBase
 {
+    private static string Folder => Path.Combine(Directory.GetCurrentDirectory(), "wwwroot", "media");
     /// <summary>
     /// 上传文件
     /// </summary>
@@ -17,22 +18,19 @@ public class UploadController : ControllerBase
     [HttpPost("upload")]
     [ProducesResponseType(StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(RE), StatusCodes.Status500InternalServerError)]
-    public async Task<ActionResult<RS<string>>> UploadAsync()
+    public async Task<RS<string>> UploadAsync(IFormFile file)
     {
-        var folder = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot", "media");
-        if (!Directory.Exists(folder)) Directory.CreateDirectory(folder);
-        var file = Request?.Form?.Files?.FirstOrDefault() ?? throw new Exception("请上传文件");
-        using var input = file.OpenReadStream();
+        if (!Directory.Exists(Folder)) Directory.CreateDirectory(Folder);
+        if (!file.ContentType.Contains("image")) throw new Exception("请上传图片");
         using var crypto = System.Security.Cryptography.SHA256.Create();
+        using var input = file.OpenReadStream();
         var hash = await crypto.ComputeHashAsync(input);
-
         var name = $"{BitConverter.ToString(hash).Replace("-", "")}{Path.GetExtension(file.FileName).ToLowerInvariant()}";
-        var path = Path.Combine(folder, name);
+        var path = Path.Combine(Folder, name);
         var url = $"media/{name}";
-
-        if (System.IO.File.Exists(path)) return Ok(new RS<string>(url));
-        using var stream = new FileStream(path, FileMode.Create);
+        if (System.IO.File.Exists(path)) return new(url);
+        using var stream = System.IO.File.Create(path);
         await file.CopyToAsync(stream);
-        return Ok(new RS<string>(url));
+        return new(url);
     }
 }
